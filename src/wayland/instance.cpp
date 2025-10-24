@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <expected>
 #include <memory>
+#include <print>
 #include <tuple>
 
 #include <wayland-client-core.h>
@@ -101,7 +102,7 @@ namespace photon::wayland {
 
 			state.bindingResult = [&] <std::size_t I = 0uz> (this const auto& self) -> decltype(state.bindingResult) {
 				using Interface = std::tuple_element_t<I, Interfaces>;
-				if (interface != photon::utils::getTypeName<Interface> ())
+				if (interface == photon::utils::getTypeName<Interface> ())
 					return bindInterface<Interface> (state, name, version);
 				if constexpr (I < std::tuple_size_v<Interfaces> - 1)
 					return self.template operator() <I + 1uz> ();
@@ -139,8 +140,28 @@ namespace photon::wayland {
 		if (instance.m_state->registry == nullptr)
 			return std::unexpected(CreateError::eRegistryCreation);
 
-		if (wl_registry_add_listener(instance.m_state->registry.get(), &registryListener, nullptr) != 0)
+		if (wl_registry_add_listener(instance.m_state->registry.get(), &registryListener, instance.m_state.get()) != 0)
 			return std::unexpected(CreateError::eRegistryAddListener);
+
+		if (wl_display_dispatch(instance.m_state->display.get()) < 0)
+			return std::unexpected(CreateError::eDisplayEventQueueDispatching);
+		if (wl_display_roundtrip(instance.m_state->display.get()) < 0)
+			return std::unexpected(CreateError::eDisplayEventQueueRoundtrip);
+
+		if (!instance.m_state->bindingResult)
+			return std::unexpected(instance.m_state->bindingResult.error());
+
+		if (std::ranges::find(
+			instance.m_state->supportedFormats,
+			WL_SHM_FORMAT_ARGB8888
+		) == instance.m_state->supportedFormats.end())
+				return std::unexpected(CreateError::eSharedMemoryFormatNotSupported);
 		return instance;
+	}
+
+	auto Instance::update() noexcept -> std::expected<void, UpdateError> {
+		if (wl_display_roundtrip(m_state->display.get()) < 0)
+			return std::unexpected(UpdateError::eDisplayEventQueueRoundtrip);
+		return {};
 	}
 }

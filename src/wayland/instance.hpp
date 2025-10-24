@@ -25,6 +25,12 @@ namespace photon::wayland {
 				eWindowManagerBaseAddListener,
 				eSharedMemoryBinding,
 				eSharedMemoryAddListener,
+				eDisplayEventQueueDispatching,
+				eDisplayEventQueueRoundtrip,
+				eSharedMemoryFormatNotSupported,
+			};
+			enum class UpdateError {
+				eDisplayEventQueueRoundtrip,
 			};
 			struct State {
 				photon::utils::Owned<wl_registry*> registry;
@@ -45,6 +51,18 @@ namespace photon::wayland {
 
 			[[nodiscard]]
 			static auto create() noexcept -> std::expected<Instance, CreateError>;
+
+			auto update() noexcept -> std::expected<void, UpdateError>;
+
+			inline auto getCompositor() const noexcept -> wl_compositor* {
+				return m_state->compositor.get();
+			}
+			inline auto getWindowManagerBase() const noexcept -> xdg_wm_base* {
+				return m_state->windowManagerBase.get();
+			}
+			inline auto getSharedMemory() const noexcept -> wl_shm* {
+				return m_state->sharedMemory.get();
+			}
 
 		private:
 			constexpr Instance() noexcept = default;
