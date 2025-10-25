@@ -37,6 +37,9 @@ namespace photon::utils {
 			constexpr auto operator==(std::nullptr_t) const noexcept -> bool {
 				return m_ptr == nullptr;
 			}
+			constexpr auto operator==(T ptr) const noexcept -> bool {
+				return m_ptr == ptr;
+			}
 
 			constexpr auto operator*() const noexcept -> std::add_lvalue_reference_t<std::remove_pointer_t<T>> {
 				assert(m_ptr != nullptr);

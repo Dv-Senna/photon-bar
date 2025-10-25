@@ -14,7 +14,8 @@ auto main(int, char**) -> int {
 		.instance = *instance,
 		.title = "Hello World!",
 		.width = 16*70,
-		.height = 9*70
+		.height = 9*70,
+		.anchor = photon::wayland::Window::Anchor::eTop,
 	})};
 	if (!window)
 		return std::println(stderr, "Can't create wayland window : {}", std::to_underlying(window.error())), EXIT_FAILURE;

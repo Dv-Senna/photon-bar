@@ -1,33 +1,23 @@
 #include "wayland/instance.hpp"
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <expected>
 #include <memory>
-#include <print>
 #include <tuple>
 
+#include <EGL/egl.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
-#include <xdg-shell/xdg-shell-client-protocol.h>
+#include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
 #include "utils/reflection.hpp"
 #include "utils/semantic.hpp"
+#include "utils/utils.hpp"
 
 
 namespace photon::wayland {
-	static const xdg_wm_base_listener windowManagerBaseListener {
-		.ping = [](void*, xdg_wm_base* windowManagerBase, uint32_t serial) noexcept -> void {
-			xdg_wm_base_pong(windowManagerBase, serial);
-		}
-	};
-	static const wl_shm_listener sharedMemoryListener {
-		.format = [](void* data, [[maybe_unused]] wl_shm* sharedMemory, uint32_t format) {
-			auto& state {*static_cast<Instance::State*> (data)};
-			state.supportedFormats.push_back(format);
-		}
-	};
-
 	template <typename T>
 	auto bindInterface(
 		Instance::State& state,
@@ -50,36 +40,16 @@ namespace photon::wayland {
 	}
 
 	template <>
-	auto bindInterface<xdg_wm_base> (
+	auto bindInterface<zwlr_layer_shell_v1> (
 		Instance::State& state,
 		uint32_t name,
 		uint32_t version
 	) noexcept -> std::expected<void, Instance::CreateError> {
-		state.windowManagerBase = photon::utils::Owned{static_cast<xdg_wm_base*> (wl_registry_bind(
-			state.registry.get(), name, &xdg_wm_base_interface, version
+		state.layerShell = photon::utils::Owned{static_cast<zwlr_layer_shell_v1*> (wl_registry_bind(
+			state.registry.get(), name, &zwlr_layer_shell_v1_interface, version
 		))};
-		if (state.windowManagerBase == nullptr)
-			return std::unexpected(Instance::CreateError::eWindowManagerBaseBinding);
-
-		if (xdg_wm_base_add_listener(state.windowManagerBase.get(), &windowManagerBaseListener, &state) != 0)
-			return std::unexpected(Instance::CreateError::eWindowManagerBaseAddListener);
-		return {};
-	}
-
-	template <>
-	auto bindInterface<wl_shm> (
-		Instance::State& state,
-		uint32_t name,
-		uint32_t version
-	) noexcept -> std::expected<void, Instance::CreateError> {
-		state.sharedMemory = photon::utils::Owned{static_cast<wl_shm*> (wl_registry_bind(
-			state.registry.get(), name, &wl_shm_interface, version
-		))};
-		if (state.sharedMemory == nullptr)
-			return std::unexpected(Instance::CreateError::eSharedMemoryBinding);
-
-		if (wl_shm_add_listener(state.sharedMemory.get(), &sharedMemoryListener, &state) != 0)
-			return std::unexpected(Instance::CreateError::eSharedMemoryAddListener);
+		if (state.layerShell == nullptr)
+			return std::unexpected(Instance::CreateError::eLayerShellBinding);
 		return {};
 	}
 
@@ -98,7 +68,7 @@ namespace photon::wayland {
 				return;
 
 			// list of the interfaces to bind
-			using Interfaces = std::tuple<wl_compositor, xdg_wm_base, wl_shm>;
+			using Interfaces = std::tuple<wl_compositor, zwlr_layer_shell_v1>;
 
 			state.bindingResult = [&] <std::size_t I = 0uz> (this const auto& self) -> decltype(state.bindingResult) {
 				using Interface = std::tuple_element_t<I, Interfaces>;
@@ -115,14 +85,16 @@ namespace photon::wayland {
 	Instance::~Instance() noexcept {
 		if (m_state == nullptr)
 			return;
-		if (m_state->sharedMemory != nullptr)
-			wl_shm_destroy(m_state->sharedMemory.release());
-		if (m_state->windowManagerBase != nullptr)
-			xdg_wm_base_destroy(m_state->windowManagerBase.release());
+		if (m_state->eglContext != nullptr)
+			eglDestroyContext(m_state->eglDisplay.get(), m_state->eglContext.release());
+		if (m_state->layerShell != nullptr)
+			zwlr_layer_shell_v1_destroy(m_state->layerShell.release());
 		if (m_state->compositor != nullptr)
 			wl_compositor_destroy(m_state->compositor.release());
 		if (m_state->registry != nullptr)
 			wl_registry_destroy(m_state->registry.release());
+		if (m_state->eglDisplay != nullptr)
+			eglTerminate(m_state->eglDisplay.release());
 		if (m_state->display != nullptr)
 			wl_display_disconnect(m_state->display.release());
 	}
@@ -135,6 +107,12 @@ namespace photon::wayland {
 		instance.m_state->display = photon::utils::Owned{wl_display_connect(nullptr)};
 		if (instance.m_state->display == nullptr)
 			return std::unexpected(CreateError::eDisplayCreation);
+
+		instance.m_state->eglDisplay = photon::utils::Owned{eglGetDisplay(instance.m_state->display.get())};
+		if (instance.m_state->eglDisplay == EGL_NO_DISPLAY)
+			return std::unexpected(CreateError::eEGLDisplayGetting);
+		if (eglInitialize(instance.m_state->eglDisplay.get(), nullptr, nullptr) == EGL_FALSE)
+			return std::unexpected(CreateError::eEGLInitialisation);
 
 		instance.m_state->registry = photon::utils::Owned{wl_display_get_registry(instance.m_state->display.get())};
 		if (instance.m_state->registry == nullptr)
@@ -151,11 +129,52 @@ namespace photon::wayland {
 		if (!instance.m_state->bindingResult)
 			return std::unexpected(instance.m_state->bindingResult.error());
 
-		if (std::ranges::find(
-			instance.m_state->supportedFormats,
-			WL_SHM_FORMAT_ARGB8888
-		) == instance.m_state->supportedFormats.end())
-				return std::unexpected(CreateError::eSharedMemoryFormatNotSupported);
+
+		const auto eglConfigAttribs {photon::utils::makeArray<const EGLint> (
+			EGL_ALPHA_SIZE, 8,
+			EGL_RED_SIZE, 8,
+			EGL_GREEN_SIZE, 8,
+			EGL_BLUE_SIZE, 8,
+			EGL_CONFORMANT, EGL_OPENGL_BIT,
+			EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+			EGL_NONE
+		)};
+		EGLint configSize {};
+		if (eglChooseConfig(
+			instance.m_state->eglDisplay.get(), eglConfigAttribs.data(), nullptr, 0, &configSize
+		) == EGL_FALSE)
+			return std::unexpected(CreateError::eEGLConfiguration);
+
+		std::vector<EGLConfig> eglConfigs {};
+		eglConfigs.resize(static_cast<std::size_t> (configSize));
+		if (eglChooseConfig(
+			instance.m_state->eglDisplay.get(), eglConfigAttribs.data(), eglConfigs.data(), configSize, &configSize
+		) == EGL_FALSE)
+			return std::unexpected(CreateError::eEGLConfiguration);
+		instance.m_state->eglConfig = eglConfigs[0];
+
+		if (eglBindAPI(EGL_OPENGL_API) == EGL_FALSE)
+			return std::unexpected(CreateError::eOpenGLBinding);
+
+		const auto eglContextAttribs {photon::utils::makeArray<const EGLint> (
+			EGL_CONTEXT_MAJOR_VERSION, 4,
+			EGL_CONTEXT_MINOR_VERSION, 6,
+			EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+		#ifdef NDEBUG
+			EGL_CONTEXT_OPENGL_DEBUG, EGL_FALSE,
+		#else
+			EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
+		#endif
+			EGL_NONE
+		)};
+		instance.m_state->eglContext = photon::utils::Owned{eglCreateContext(
+			instance.m_state->eglDisplay.get(),
+			instance.m_state->eglConfig,
+			EGL_NO_CONTEXT,
+			eglContextAttribs.data()
+		)};
+		if (instance.m_state->eglContext == nullptr)
+			return std::unexpected(CreateError::eEGLContextCreation);
 		return instance;
 	}
 
