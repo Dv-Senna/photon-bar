@@ -1,15 +1,18 @@
 #include "wayland/window.hpp"
 
-#include <EGL/eglplatform.h>
 #include <cstdint>
 #include <expected>
 #include <map>
+#include <print>
+#include <unordered_map>
 
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <glad/glad.h>
 #include <EGL/egl.h>
+#include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 #include <wayland-egl-core.h>
 #include <wayland-egl.h>
@@ -21,6 +24,51 @@
 
 
 namespace photon::wayland {
+#ifndef NDEBUG
+	static auto debugMessengerCallback(
+		GLenum source,
+		GLenum type,
+		GLuint id,
+		GLenum severity,
+		GLsizei length,
+		const GLchar* message,
+		const void*
+	) -> void APIENTRY {
+		static const std::unordered_map<GLenum, std::string_view> SOURCE_MAP {
+			{GL_DEBUG_SOURCE_API, "api"},
+			{GL_DEBUG_SOURCE_APPLICATION, "application"},
+			{GL_DEBUG_SOURCE_SHADER_COMPILER, "shader compiler"},
+			{GL_DEBUG_SOURCE_THIRD_PARTY, "third party"},
+			{GL_DEBUG_SOURCE_WINDOW_SYSTEM, "window system"},
+			{GL_DEBUG_SOURCE_OTHER, "other"}
+		};
+		static const std::unordered_map<GLenum, std::string_view> TYPE_MAP {
+			{GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR, "deprecated behavior"},
+			{GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR, "undefined behavior"},
+			{GL_DEBUG_TYPE_ERROR, "error"},
+			{GL_DEBUG_TYPE_MARKER, "marker"},
+			{GL_DEBUG_TYPE_PERFORMANCE, "performance"},
+			{GL_DEBUG_TYPE_POP_GROUP, "pop group"},
+			{GL_DEBUG_TYPE_PUSH_GROUP, "push group"},
+			{GL_DEBUG_TYPE_PORTABILITY, "portability"},
+			{GL_DEBUG_TYPE_OTHER, "other"}
+		};
+		static const std::unordered_map<GLenum, std::string_view> SEVERITY_MAP {
+			{GL_DEBUG_SEVERITY_NOTIFICATION, "verbose"},
+			{GL_DEBUG_SEVERITY_LOW, "info"},
+			{GL_DEBUG_SEVERITY_MEDIUM, "warning"},
+			{GL_DEBUG_SEVERITY_HIGH, "error"}
+		};
+
+		std::println("{} > OpenGL (id={}) : from {}, type {} : {}",
+			SEVERITY_MAP.find(severity)->second,
+			id, SOURCE_MAP.find(source)->second,
+			TYPE_MAP.find(type)->second,
+			std::string_view{message, static_cast<std::size_t> (length)}
+		);
+	}
+#endif
+
 	static const zwlr_layer_surface_v1_listener layerSurfaceListener {
 		.configure = [](
 			void* data,
@@ -29,21 +77,12 @@ namespace photon::wayland {
 			uint32_t width,
 			uint32_t height
 		) {
+			std::println("configure wlr surface, {}x{}", width, height);
 			auto eglWindow {static_cast<wl_egl_window*> (data)};
 			wl_egl_window_resize(eglWindow, width, height, 0, 0);
 			zwlr_layer_surface_v1_ack_configure(layerSurface, serial);
 		},
 		.closed = [](void*, [[maybe_unused]] zwlr_layer_surface_v1* layerSurface) noexcept -> void {}
-	};
-
-	enum class BufferCreateError {
-		eNoXDGRuntimeDir,
-		eAnonymousFileCreation,
-		eAnonymousFileUnlinkage,
-		eAnonymousFileTruncate,
-		eAnonymousFileMapping,
-		eSharedMemoryPoolCreation,
-		eBufferCreation,
 	};
 
 	Window::~Window() noexcept {
@@ -120,14 +159,43 @@ namespace photon::wayland {
 		};
 		const auto anchor {anchorsMap.find(createInfos.anchor)};
 		assert(anchor != anchorsMap.end());
-		zwlr_layer_surface_v1_set_anchor(window.m_layerSurface.get(), anchor->second);
-		zwlr_layer_surface_v1_set_size(window.m_layerSurface.get(), createInfos.width, createInfos.height);
+		zwlr_layer_surface_v1_set_anchor(window.m_layerSurface.get(), anchor->second
+			| ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
+			| ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT
+		);
+		zwlr_layer_surface_v1_set_exclusive_edge(window.m_layerSurface.get(), anchor->second);
+		zwlr_layer_surface_v1_set_exclusive_zone(window.m_layerSurface.get(),
+			createInfos.anchor == Anchor::eTop || createInfos.anchor == Anchor::eBottom
+				? createInfos.height
+				: createInfos.width
+		);
+		zwlr_layer_surface_v1_set_size(window.m_layerSurface.get(), /*createInfos.width*/0, createInfos.height);
 
 		wl_surface_commit(window.m_surface.get());
-//		window.fill({.r = 0, .g = 0, .b = 0, .a = 255});
+		wl_display_roundtrip(window.m_instance->getDisplay());
+
+		if (gladLoadGLLoader(reinterpret_cast<GLADloadproc> (eglGetProcAddress)) == 0)
+			return std::unexpected(CreateError::eOpenGLFunctionsLoading);
+
+	#ifndef NDEBUG
+		glEnable(GL_DEBUG_OUTPUT);
+		glDebugMessageCallback(&debugMessengerCallback, nullptr);
+	#endif
+
+		glViewport(0, 0, createInfos.width, createInfos.height);
+
+		window.fill({.r = 0, .g = 0, .b = 0, .a = 255});
 		return window;
 	}
 
 	auto Window::fill(photon::Color color) noexcept -> void {
+		glClearColor(color.r / 255.f, color.g / 255.f, color.b / 255.f, color.a / 255.f);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
+
+	auto Window::present() noexcept -> std::expected<void, PresentError> {
+		if (eglSwapBuffers(m_instance->getEGLDisplay(), m_eglSurface.get()) == EGL_FALSE)
+			return std::unexpected(PresentError::eBufferSwapping);
+		return {};
 	}
 }

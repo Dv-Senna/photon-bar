@@ -30,9 +30,6 @@ namespace photon::wayland {
 				eOpenGLBinding,
 				eEGLContextCreation,
 			};
-			enum class UpdateError {
-				eDisplayEventQueueRoundtrip,
-			};
 			struct State {
 				photon::utils::Owned<wl_registry*> registry;
 				photon::utils::Owned<wl_display*> display;
@@ -54,8 +51,9 @@ namespace photon::wayland {
 			[[nodiscard]]
 			static auto create() noexcept -> std::expected<Instance, CreateError>;
 
-			auto update() noexcept -> std::expected<void, UpdateError>;
-
+			inline auto getDisplay() const noexcept -> wl_display* {
+				return m_state->display.get();
+			}
 			inline auto getCompositor() const noexcept -> wl_compositor* {
 				return m_state->compositor.get();
 			}

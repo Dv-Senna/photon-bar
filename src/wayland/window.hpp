@@ -26,6 +26,11 @@ namespace photon::wayland {
 				eLayerSurfaceAddListener,
 				eEGLSurfaceCreation,
 				eEGLMakeCurrent,
+				eOpenGLFunctionsLoading,
+			};
+			enum class PresentError {
+				eDisplayEventQueueRoundtrip,
+				eBufferSwapping,
 			};
 			enum class Anchor {
 				eTop,
@@ -51,6 +56,7 @@ namespace photon::wayland {
 			static auto create(const CreateInfos& createInfos) noexcept -> std::expected<Window, CreateError>;
 
 			auto fill(photon::Color color) noexcept -> void;
+			auto present() noexcept -> std::expected<void, PresentError>;
 
 		private:
 			constexpr Window() noexcept = default;

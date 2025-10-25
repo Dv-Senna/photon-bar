@@ -13,15 +13,18 @@ auto main(int, char**) -> int {
 	auto window {photon::wayland::Window::create({
 		.instance = *instance,
 		.title = "Hello World!",
-		.width = 16*70,
-		.height = 9*70,
+		.width = 2560,
+		.height = 50,
 		.anchor = photon::wayland::Window::Anchor::eTop,
 	})};
 	if (!window)
 		return std::println(stderr, "Can't create wayland window : {}", std::to_underlying(window.error())), EXIT_FAILURE;
 	while (true) {
-		if (!instance->update())
-			return std::println(stderr, "Can't update wayland instance"), EXIT_FAILURE;
+		if (wl_display_dispatch_pending(instance->getDisplay()) < 0)
+			return std::println(stderr, "Can't dispatch pending wayland"), EXIT_FAILURE;
+		window->fill({.r = 0, .g = 0, .b = 0, .a = 100});
+		if (!window->present())
+			return std::println(stderr, "Can't present wayland window"), EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
 }

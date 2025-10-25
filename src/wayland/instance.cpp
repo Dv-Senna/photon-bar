@@ -177,10 +177,4 @@ namespace photon::wayland {
 			return std::unexpected(CreateError::eEGLContextCreation);
 		return instance;
 	}
-
-	auto Instance::update() noexcept -> std::expected<void, UpdateError> {
-		if (wl_display_roundtrip(m_state->display.get()) < 0)
-			return std::unexpected(UpdateError::eDisplayEventQueueRoundtrip);
-		return {};
-	}
 }
