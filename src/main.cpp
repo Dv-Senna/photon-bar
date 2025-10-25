@@ -13,8 +13,7 @@ auto main(int, char**) -> int {
 	auto window {photon::wayland::Window::create({
 		.instance = *instance,
 		.title = "Hello World!",
-		.width = 2560,
-		.height = 50,
+		.size = 30,
 		.anchor = photon::wayland::Window::Anchor::eTop,
 	})};
 	if (!window)

@@ -116,8 +116,7 @@ namespace photon::wayland {
 
 		window.m_eglWindow = photon::utils::Owned{wl_egl_window_create(
 			window.m_surface.get(),
-			createInfos.width,
-			createInfos.height
+			100, 100
 		)};
 		if (window.m_eglWindow == nullptr)
 			return std::unexpected(CreateError::eEGLWindowCreation);
@@ -159,17 +158,21 @@ namespace photon::wayland {
 		};
 		const auto anchor {anchorsMap.find(createInfos.anchor)};
 		assert(anchor != anchorsMap.end());
-		zwlr_layer_surface_v1_set_anchor(window.m_layerSurface.get(), anchor->second
-			| ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
-			| ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT
-		);
+		uint32_t anchorWithSide {anchor->second};
+		uint32_t width {0};
+		uint32_t height {0};
+		if (createInfos.anchor == Anchor::eTop || createInfos.anchor == Anchor::eBottom) {
+			anchorWithSide |= ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+			height = createInfos.size;
+		}
+		else {
+			anchorWithSide |= ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+			width = createInfos.size;
+		}
+		zwlr_layer_surface_v1_set_anchor(window.m_layerSurface.get(), anchorWithSide);
 		zwlr_layer_surface_v1_set_exclusive_edge(window.m_layerSurface.get(), anchor->second);
-		zwlr_layer_surface_v1_set_exclusive_zone(window.m_layerSurface.get(),
-			createInfos.anchor == Anchor::eTop || createInfos.anchor == Anchor::eBottom
-				? createInfos.height
-				: createInfos.width
-		);
-		zwlr_layer_surface_v1_set_size(window.m_layerSurface.get(), /*createInfos.width*/0, createInfos.height);
+		zwlr_layer_surface_v1_set_exclusive_zone(window.m_layerSurface.get(), createInfos.size);
+		zwlr_layer_surface_v1_set_size(window.m_layerSurface.get(), width, height);
 
 		wl_surface_commit(window.m_surface.get());
 		wl_display_roundtrip(window.m_instance->getDisplay());
@@ -182,7 +185,7 @@ namespace photon::wayland {
 		glDebugMessageCallback(&debugMessengerCallback, nullptr);
 	#endif
 
-		glViewport(0, 0, createInfos.width, createInfos.height);
+		glViewport(0, 0, width, height);
 
 		window.fill({.r = 0, .g = 0, .b = 0, .a = 255});
 		return window;
