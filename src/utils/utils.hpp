@@ -24,11 +24,4 @@ namespace photon::utils {
 		&& std::default_initializable<T>
 		&& std::is_copy_assignable_v<T>
 		&& std::swappable<T>;
-
-	template <typename From, typename Of>
-	concept forward_of = (std::is_const_v<Of> && std::same_as<Of, std::remove_reference_t<From>>)
-		|| (!std::is_const_v<Of> && std::same_as<Of, std::remove_const_t<std::remove_reference_t<From>>>);
-
-	template <typename T>
-	using forward_type_t = decltype(std::forward<T> (std::declval<T> ()));
 }

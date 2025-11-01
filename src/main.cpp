@@ -1,9 +1,9 @@
-#include <chrono>
 #include <cstdlib>
 #include <print>
 #include <string>
 #include <thread>
-#include <utility>
+
+#include <flex/enums/enums.hpp>
 
 #include "wayland/instance.hpp"
 #include "wayland/window.hpp"
@@ -43,16 +43,20 @@ auto main(int, char**) -> int {
 	eventQueue.push<EventType::eSayHello> ("Albert"s);
 
 	auto instance {photon::wayland::Instance::create()};
-	if (!instance)
-		return std::println(stderr, "Can't create wayland instance : {}", std::to_underlying(instance.error())), EXIT_FAILURE;
+	if (!instance) {
+		std::println(stderr, "Can't create wayland instance : {}", flex::toString(instance.error()).value_or("?"));
+		return EXIT_FAILURE;
+	}
 	auto window {photon::wayland::Window::create({
 		.instance = *instance,
 		.title = "Hello World!",
 		.size = 30,
 		.anchor = photon::wayland::Window::Anchor::eTop,
 	})};
-	if (!window)
-		return std::println(stderr, "Can't create wayland window : {}", std::to_underlying(window.error())), EXIT_FAILURE;
+	if (!window) {
+		std::println(stderr, "Can't create wayland window : {}", flex::toString(window.error()).value_or("?"));
+		return EXIT_FAILURE;
+	}
 	bool running {true};
 	while (running) {
 		if (wl_display_dispatch_pending(instance->getDisplay()) < 0)

@@ -9,6 +9,8 @@
 #include <string>
 #include <type_traits>
 
+#include <flex/core/typeTraits.hpp>
+
 #include "utils/utils.hpp"
 
 
@@ -30,7 +32,7 @@ namespace photon {
 
 	template <event_key auto key, event_value Value>
 	struct Event : EventBase<decltype(key)> {
-		constexpr Event(std::size_t queueId, std::size_t uuid, photon::utils::forward_of<Value> auto&& value) noexcept :
+		constexpr Event(std::size_t queueId, std::size_t uuid, flex::forward_of<Value> auto&& value) noexcept :
 			photon::EventBase<decltype(key)> {
 				.key = key,
 				.queueId = queueId,
@@ -141,7 +143,7 @@ namespace photon {
 			}
 
 			template <Key key>
-			auto push(photon::utils::forward_of<value_from_key<key>> auto&& value) noexcept -> void {
+			auto push(flex::forward_of<value_from_key<key>> auto&& value) noexcept -> void {
 				{
 					std::scoped_lock<std::mutex> _ {m_mutex};
 					m_eventQueue.push(std::make_unique<Event<key, value_from_key<key>>> (
