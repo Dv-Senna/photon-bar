@@ -22,4 +22,4 @@ target_link_libraries(photon-bar PRIVATE
 	flex::flex-reflection
 	flex::flex-enums
 )
-target_include_directories(photon-bar PRIVATE src)
+target_include_directories(photon-bar PRIVATE include)

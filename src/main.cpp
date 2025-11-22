@@ -4,8 +4,8 @@
 
 #include <flex/enums/enums.hpp>
 
-#include "wayland/instance.hpp"
-#include "wayland/window.hpp"
+#include "photon/wayland/instance.hpp"
+#include "photon/wayland/window.hpp"
 
 
 auto main(int, char**) -> int {

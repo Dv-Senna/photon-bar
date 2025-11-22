@@ -1,4 +1,4 @@
-#include "wayland/window.hpp"
+#include "photon/wayland/window.hpp"
 
 #include <cstdint>
 #include <expected>
@@ -13,8 +13,8 @@
 #include <wayland-client-protocol.h>
 #include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
-#include "color.hpp"
-#include "utils/semantic.hpp"
+#include "photon/color.hpp"
+#include "photon/utils/semantic.hpp"
 
 
 namespace photon::wayland {

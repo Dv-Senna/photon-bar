@@ -1,4 +1,4 @@
-#include "wayland/instance.hpp"
+#include "photon/wayland/instance.hpp"
 
 #include <cassert>
 #include <cstdint>
@@ -10,8 +10,8 @@
 #include <wayland-client-protocol.h>
 #include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
-#include "utils/reflection.hpp"
-#include "utils/semantic.hpp"
+#include "photon/utils/reflection.hpp"
+#include "photon/utils/semantic.hpp"
 
 
 namespace photon::wayland {

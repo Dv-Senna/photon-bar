@@ -6,7 +6,7 @@
 #include <wayland-client-protocol.h>
 #include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
-#include "utils/semantic.hpp"
+#include "photon/utils/semantic.hpp"
 
 
 namespace photon::wayland {

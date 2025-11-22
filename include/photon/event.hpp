@@ -11,7 +11,7 @@
 
 #include <flex/core/typeTraits.hpp>
 
-#include "utils/utils.hpp"
+#include "photon/utils/utils.hpp"
 
 
 namespace photon {
