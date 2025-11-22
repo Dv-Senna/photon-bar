@@ -1,20 +1,17 @@
 #include "wayland/instance.hpp"
 
-#include <array>
 #include <cassert>
 #include <cstdint>
 #include <expected>
 #include <memory>
 #include <tuple>
 
-#include <EGL/egl.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 #include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
 #include "utils/reflection.hpp"
 #include "utils/semantic.hpp"
-#include "utils/utils.hpp"
 
 
 namespace photon::wayland {
@@ -85,16 +82,12 @@ namespace photon::wayland {
 	Instance::~Instance() noexcept {
 		if (m_state == nullptr)
 			return;
-		if (m_state->eglContext != nullptr)
-			eglDestroyContext(m_state->eglDisplay.get(), m_state->eglContext.release());
 		if (m_state->layerShell != nullptr)
 			zwlr_layer_shell_v1_destroy(m_state->layerShell.release());
 		if (m_state->compositor != nullptr)
 			wl_compositor_destroy(m_state->compositor.release());
 		if (m_state->registry != nullptr)
 			wl_registry_destroy(m_state->registry.release());
-		if (m_state->eglDisplay != nullptr)
-			eglTerminate(m_state->eglDisplay.release());
 		if (m_state->display != nullptr)
 			wl_display_disconnect(m_state->display.release());
 	}
@@ -107,12 +100,6 @@ namespace photon::wayland {
 		instance.m_state->display = photon::utils::Owned{wl_display_connect(nullptr)};
 		if (instance.m_state->display == nullptr)
 			return std::unexpected(CreateError::eDisplayCreation);
-
-		instance.m_state->eglDisplay = photon::utils::Owned{eglGetDisplay(instance.m_state->display.get())};
-		if (instance.m_state->eglDisplay == EGL_NO_DISPLAY)
-			return std::unexpected(CreateError::eEGLDisplayGetting);
-		if (eglInitialize(instance.m_state->eglDisplay.get(), nullptr, nullptr) == EGL_FALSE)
-			return std::unexpected(CreateError::eEGLInitialisation);
 
 		instance.m_state->registry = photon::utils::Owned{wl_display_get_registry(instance.m_state->display.get())};
 		if (instance.m_state->registry == nullptr)
@@ -128,53 +115,6 @@ namespace photon::wayland {
 
 		if (!instance.m_state->bindingResult)
 			return std::unexpected(instance.m_state->bindingResult.error());
-
-
-		const auto eglConfigAttribs {photon::utils::makeArray<const EGLint> (
-			EGL_ALPHA_SIZE, 8,
-			EGL_RED_SIZE, 8,
-			EGL_GREEN_SIZE, 8,
-			EGL_BLUE_SIZE, 8,
-			EGL_CONFORMANT, EGL_OPENGL_BIT,
-			EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-			EGL_NONE
-		)};
-		EGLint configSize {};
-		if (eglChooseConfig(
-			instance.m_state->eglDisplay.get(), eglConfigAttribs.data(), nullptr, 0, &configSize
-		) == EGL_FALSE)
-			return std::unexpected(CreateError::eEGLConfiguration);
-
-		std::vector<EGLConfig> eglConfigs {};
-		eglConfigs.resize(static_cast<std::size_t> (configSize));
-		if (eglChooseConfig(
-			instance.m_state->eglDisplay.get(), eglConfigAttribs.data(), eglConfigs.data(), configSize, &configSize
-		) == EGL_FALSE)
-			return std::unexpected(CreateError::eEGLConfiguration);
-		instance.m_state->eglConfig = eglConfigs[0];
-
-		if (eglBindAPI(EGL_OPENGL_API) == EGL_FALSE)
-			return std::unexpected(CreateError::eOpenGLBinding);
-
-		const auto eglContextAttribs {photon::utils::makeArray<const EGLint> (
-			EGL_CONTEXT_MAJOR_VERSION, 4,
-			EGL_CONTEXT_MINOR_VERSION, 6,
-			EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-		#ifdef NDEBUG
-			EGL_CONTEXT_OPENGL_DEBUG, EGL_FALSE,
-		#else
-			EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
-		#endif
-			EGL_NONE
-		)};
-		instance.m_state->eglContext = photon::utils::Owned{eglCreateContext(
-			instance.m_state->eglDisplay.get(),
-			instance.m_state->eglConfig,
-			EGL_NO_CONTEXT,
-			eglContextAttribs.data()
-		)};
-		if (instance.m_state->eglContext == nullptr)
-			return std::unexpected(CreateError::eEGLContextCreation);
 		return instance;
 	}
 }

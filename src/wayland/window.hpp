@@ -1,13 +1,10 @@
 #pragma once
 
-#include <EGL/egl.h>
-#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <string_view>
 
 #include <wayland-client-protocol.h>
-#include <wayland-egl.h>
 #include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
 #include "color.hpp"
@@ -22,11 +19,7 @@ namespace photon::wayland {
 				eSurfaceCreation,
 				eBufferCreation,
 				eLayerSurfaceCreation,
-				eEGLWindowCreation,
 				eLayerSurfaceAddListener,
-				eEGLSurfaceCreation,
-				eEGLMakeCurrent,
-				eOpenGLFunctionsLoading,
 			};
 			enum class PresentError {
 				eBufferSwapping,
@@ -62,7 +55,5 @@ namespace photon::wayland {
 			photon::wayland::Instance* m_instance;
 			photon::utils::Owned<wl_surface*> m_surface;
 			photon::utils::Owned<zwlr_layer_surface_v1*> m_layerSurface;
-			photon::utils::Owned<wl_egl_window*> m_eglWindow;
-			photon::utils::Owned<EGLSurface> m_eglSurface;
 	};
 }

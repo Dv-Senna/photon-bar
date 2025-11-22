@@ -1,13 +1,9 @@
 #pragma once
 
-#include <cstdint>
 #include <expected>
 #include <memory>
-#include <vector>
 
-#include <EGL/egl.h>
 #include <wayland-client-protocol.h>
-#include <wayland-egl.h>
 #include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
 #include "utils/semantic.hpp"
@@ -24,20 +20,12 @@ namespace photon::wayland {
 				eCompositorBinding,
 				eDisplayEventQueueDispatching,
 				eDisplayEventQueueRoundtrip,
-				eEGLDisplayGetting,
-				eEGLInitialisation,
-				eEGLConfiguration,
-				eOpenGLBinding,
-				eEGLContextCreation,
 			};
 			struct State {
 				photon::utils::Owned<wl_registry*> registry;
 				photon::utils::Owned<wl_display*> display;
 				photon::utils::Owned<wl_compositor*> compositor;
 				photon::utils::Owned<zwlr_layer_shell_v1*> layerShell;
-				photon::utils::Owned<EGLDisplay> eglDisplay;
-				photon::utils::Owned<EGLContext> eglContext;
-				EGLConfig eglConfig;
 				std::expected<void, CreateError> bindingResult;
 			};
 
@@ -59,15 +47,6 @@ namespace photon::wayland {
 			}
 			inline auto getLayerShell() const noexcept -> zwlr_layer_shell_v1* {
 				return m_state->layerShell.get();
-			}
-			inline auto getEGLContext() const noexcept -> EGLContext {
-				return m_state->eglContext.get();
-			}
-			inline auto getEGLDisplay() const noexcept -> EGLDisplay {
-				return m_state->eglDisplay.get();
-			}
-			inline auto getEGLConfig() const noexcept -> EGLConfig {
-				return m_state->eglConfig;
 			}
 
 		private:
