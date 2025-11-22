@@ -1,2 +1,0 @@
-cmake . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=On
-cmake --build build
