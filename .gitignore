@@ -23,3 +23,8 @@ target
 # IDEs
 .cache/*
 .vscode/*
+
+
+# Added by cargo
+
+/target
