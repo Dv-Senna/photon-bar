@@ -145,13 +145,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "photon-bar"
-version = "0.1.0"
-dependencies = [
- "wayland-client",
-]
-
-[[package]]
 name = "prettyplease"
 version = "0.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"

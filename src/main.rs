@@ -1,15 +1,16 @@
-#![allow(dead_code)]
-
 extern crate wayland_client;
-extern crate wayland_protocols;
-extern crate wayland_protocols_wlr;
-
-mod wayland;
 
 fn main() {
-    let window = wayland::Window::new().unwrap();
-
-    loop {
-        window.present();
+    let display = unsafe {wayland_client::wl_display_connect(std::ptr::null())};
+    if display == std::ptr::null_mut() {
+        panic!();
     }
+
+    let registry = unsafe {wayland_client::wl_display_get_registry(display)};
+    if registry == std::ptr::null_mut() {
+        panic!();
+    }
+
+    unsafe {wayland_client::wl_registry_destroy(registry)};
+    unsafe {wayland_client::wl_display_disconnect(display)};
 }
