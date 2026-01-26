@@ -1,7 +1,0 @@
-[package]
-name = "photon-bar"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-wayland-client = {path = "./wayland-client"}
