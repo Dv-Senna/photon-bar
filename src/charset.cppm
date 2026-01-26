@@ -1,11 +1,60 @@
-#include "photon/charset.hpp"
+module;
 
 #include <ranges>
 #include <string>
+#include <vector>
+
+export module photon.charset;
 
 
 namespace photon {
-	auto convertUtf8ToCodepoint(const std::u8string_view character) noexcept -> std::optional<char32_t> {
+	export class Charset final {
+		public:
+			Charset(const Charset&) = delete;
+			auto operator=(const Charset&) -> Charset& = delete;
+			constexpr Charset(Charset&&) noexcept = default;
+			constexpr auto operator=(Charset&&) noexcept -> Charset& = default;
+
+			static auto create() noexcept -> Charset {
+				return Charset{};
+			}
+			static auto from(std::span<const char32_t> characters) noexcept -> std::optional<Charset> {
+				Charset charset {};
+				try {
+					charset.m_characters = std::vector<char32_t> (std::from_range, characters);
+				}
+				catch (...) {
+					return std::nullopt;
+				}
+				return charset;
+			}
+
+			auto clone() const noexcept -> std::optional<Charset> {
+				try {
+					Charset charset {};
+					charset.m_characters = m_characters;
+					return charset;
+				}
+				catch (...) {
+					return std::nullopt;
+				}
+			}
+
+			inline auto has(char32_t character) const noexcept -> bool {
+				return std::ranges::find(m_characters, character) != m_characters.end();
+			}
+			auto getCharacters() const noexcept -> const std::vector<char32_t>& {
+				return m_characters;
+			}
+
+		private:
+			constexpr Charset() noexcept = default;
+
+			std::vector<char32_t> m_characters;
+	};
+
+
+	export auto convertUtf8ToCodepoint(const std::u8string_view character) noexcept -> std::optional<char32_t> {
 		if (character.empty())
 			return std::nullopt;
 		if (character[0] & 0b1000'0000)
@@ -52,7 +101,7 @@ namespace photon {
 		return std::nullopt;
 	}
 
-	auto convertCodepointToUtf8(const char32_t codepoint) noexcept -> std::optional<std::u8string> {
+	export auto convertCodepointToUtf8(const char32_t codepoint) noexcept -> std::optional<std::u8string> {
 		if (codepoint <= 0x7f)
 			return std::u8string{static_cast<char8_t> (static_cast<char> (codepoint))};
 		if (codepoint <= 0x7ff) {
@@ -76,31 +125,5 @@ namespace photon {
 			static_cast<char8_t> (((static_cast<std::size_t> (codepoint) >> 6uz) & 0b0011'1111) | 0b1000'0000),
 			static_cast<char8_t> ((static_cast<std::size_t> (codepoint) & 0b0011'1111) | 0b1000'0000),
 		};
-	}
-
-	auto Charset::create() noexcept -> Charset {
-		return Charset{};
-	}
-
-	auto Charset::from(std::span<const char32_t> characters) noexcept -> std::optional<Charset> {
-		Charset charset {};
-		try {
-			charset.m_characters = std::vector<char32_t> (std::from_range, characters);
-		}
-		catch (...) {
-			return std::nullopt;
-		}
-		return charset;
-	}
-
-	auto Charset::clone() const noexcept -> std::optional<Charset> {
-		try {
-			Charset charset {};
-			charset.m_characters = m_characters;
-			return charset;
-		}
-		catch (...) {
-			return std::nullopt;
-		}
 	}
 }

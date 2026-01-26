@@ -2,10 +2,12 @@
 #include <print>
 #include <thread>
 
+#include <wayland-client-core.h>
+
 #include <flex/enums/enums.hpp>
 
-#include "photon/wayland/instance.hpp"
-#include "photon/wayland/window.hpp"
+import photon.wayland.instance;
+import photon.wayland.window;
 
 
 auto main(int, char**) -> int {

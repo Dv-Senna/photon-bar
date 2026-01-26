@@ -1,4 +1,4 @@
-#pragma once
+module;
 
 #include <array>
 #include <concepts>
@@ -11,15 +11,21 @@
 #include <utility>
 #include <vector>
 
+export module photon.utils;
+
+export import photon.utils.janitor;
+export import photon.utils.semantic;
+export import photon.utils.traits;
+
 
 namespace photon::utils {
-	template <typename T>
+	export template <typename T>
 	constexpr auto makeArray(auto&&... datas) noexcept -> std::array<T, sizeof...(datas)> {
 		return std::array<T, sizeof...(datas)> {std::forward<decltype(datas)> (datas)...};
 	}
 
 
-	template <typename T>
+	export template <typename T>
 	concept hashable = requires(const T cv, std::hash<T> hash) {
 		{hash(cv)} -> std::same_as<std::size_t>;
 	}
@@ -30,12 +36,12 @@ namespace photon::utils {
 		&& std::swappable<T>;
 
 
-	enum class FilesystemError {
+	export enum class FilesystemError {
 		eSystem,
 		eFile,
 	};
 
-	inline auto readBinaryFile(std::filesystem::path filePath) noexcept
+	export inline auto readBinaryFile(std::filesystem::path filePath) noexcept
 		-> std::expected<std::vector<std::byte>, FilesystemError>
 	{
 		std::error_code errorCode {};

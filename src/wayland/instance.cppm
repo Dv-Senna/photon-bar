@@ -1,4 +1,4 @@
-#include "photon/wayland/instance.hpp"
+module;
 
 #include <cassert>
 #include <cstdint>
@@ -10,11 +10,72 @@
 #include <wayland-client-protocol.h>
 #include <wlr-layer-shell-unstable-v1/wlr-layer-shell-unstable-v1-protocol.h>
 
-#include "photon/utils/reflection.hpp"
-#include "photon/utils/semantic.hpp"
+#include <flex/reflection/reflection.hpp>
+
+export module photon.wayland.instance;
+
+import photon.utils.semantic;
 
 
 namespace photon::wayland {
+	export class Instance final {
+		public:
+			enum class CreateError {
+				eDisplayCreation,
+				eRegistryCreation,
+				eRegistryAddListener,
+				eLayerShellBinding,
+				eCompositorBinding,
+				eDisplayEventQueueDispatching,
+				eDisplayEventQueueRoundtrip,
+			};
+			struct State {
+				photon::utils::Owned<wl_registry*> registry;
+				photon::utils::Owned<wl_display*> display;
+				photon::utils::Owned<wl_compositor*> compositor;
+				photon::utils::Owned<zwlr_layer_shell_v1*> layerShell;
+				std::expected<void, CreateError> bindingResult;
+			};
+
+			Instance(const Instance&) = delete;
+			auto operator=(const Instance&) -> Instance& = delete;
+			auto operator=(Instance&&) -> Instance& = delete;
+
+			constexpr Instance(Instance&&) noexcept = default;
+			~Instance() noexcept {
+				if (m_state == nullptr)
+					return;
+				if (m_state->layerShell != nullptr)
+					zwlr_layer_shell_v1_destroy(m_state->layerShell.release());
+				if (m_state->compositor != nullptr)
+					wl_compositor_destroy(m_state->compositor.release());
+				if (m_state->registry != nullptr)
+					wl_registry_destroy(m_state->registry.release());
+				if (m_state->display != nullptr)
+					wl_display_disconnect(m_state->display.release());
+			}
+
+			[[nodiscard]]
+			static auto create() noexcept -> std::expected<Instance, CreateError>;
+
+			inline auto getDisplay() const noexcept -> wl_display* {
+				return m_state->display.get();
+			}
+			inline auto getCompositor() const noexcept -> wl_compositor* {
+				return m_state->compositor.get();
+			}
+			inline auto getLayerShell() const noexcept -> zwlr_layer_shell_v1* {
+				return m_state->layerShell.get();
+			}
+
+		private:
+			constexpr Instance() noexcept = default;
+			// must be on the heap to keep consistent address for C-callback
+			// even after the created instance is returned from `Instance::create`
+			std::unique_ptr<State> m_state;
+	};
+
+
 	template <typename T>
 	auto bindInterface(
 		Instance::State& state,
@@ -50,7 +111,6 @@ namespace photon::wayland {
 		return {};
 	}
 
-
 	static const wl_registry_listener registryListener {
 		.global = [](
 			void* data,
@@ -69,7 +129,7 @@ namespace photon::wayland {
 
 			state.bindingResult = [&] <std::size_t I = 0uz> (this const auto& self) -> decltype(state.bindingResult) {
 				using Interface = std::tuple_element_t<I, Interfaces>;
-				if (interface == photon::utils::getTypeName<Interface> ())
+				if (interface == flex::reflection::internals::getTypeName<Interface> ())
 					return bindInterface<Interface> (state, name, version);
 				if constexpr (I < std::tuple_size_v<Interfaces> - 1)
 					return self.template operator() <I + 1uz> ();
@@ -79,18 +139,6 @@ namespace photon::wayland {
 		.global_remove = [](void*, wl_registry*, uint32_t) {}
 	};
 
-	Instance::~Instance() noexcept {
-		if (m_state == nullptr)
-			return;
-		if (m_state->layerShell != nullptr)
-			zwlr_layer_shell_v1_destroy(m_state->layerShell.release());
-		if (m_state->compositor != nullptr)
-			wl_compositor_destroy(m_state->compositor.release());
-		if (m_state->registry != nullptr)
-			wl_registry_destroy(m_state->registry.release());
-		if (m_state->display != nullptr)
-			wl_display_disconnect(m_state->display.release());
-	}
 
 	auto Instance::create() noexcept -> std::expected<Instance, CreateError> {
 		static std::size_t instanceCount {0uz};

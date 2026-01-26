@@ -1,4 +1,4 @@
-#pragma once
+module;
 
 #include <concepts>
 #include <condition_variable>
@@ -11,26 +11,28 @@
 
 #include <flex/core/typeTraits.hpp>
 
-#include "photon/utils/utils.hpp"
+export module photon.event;
+
+import photon.utils;
 
 
 namespace photon {
-	template <typename Value>
+	export template <typename Value>
 	concept event_value = std::same_as<Value, std::remove_cvref_t<Value>>
 		&& std::move_constructible<Value>
 		&& std::is_move_assignable_v<Value>;
 
-	template <typename Key>
+	export template <typename Key>
 	concept event_key = std::is_scoped_enum_v<Key>;
 
-	template <event_key Key>
+	export template <event_key Key>
 	struct EventBase {
 		Key key;
 		std::size_t queueId;
 		std::size_t uuid;
 	};
 
-	template <event_key auto key, event_value Value>
+	export template <event_key auto key, event_value Value>
 	struct Event : EventBase<decltype(key)> {
 		constexpr Event(std::size_t queueId, std::size_t uuid, flex::forward_of<Value> auto&& value) noexcept :
 			photon::EventBase<decltype(key)> {
@@ -115,7 +117,7 @@ namespace photon {
 	}
 
 
-	template <event_key Key, internals::events::event_of_key<Key>... Events>
+	export template <event_key Key, internals::events::event_of_key<Key>... Events>
 	requires (!internals::events::has_key_duplicate<Key, Events...>::value)
 	class EventQueue final {
 		template <Key key>

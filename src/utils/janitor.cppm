@@ -1,10 +1,12 @@
-#pragma once
+module;
 
 #include <utility>
 
+export module photon.utils.janitor;
+
 
 namespace photon::utils {
-	template <typename Callback>
+	export template <typename Callback>
 	class Janitor final {
 		public:
 			constexpr Janitor(Callback&& callback) noexcept :

@@ -1,4 +1,4 @@
-#pragma once
+module;
 
 #include <cassert>
 #include <cstddef>
@@ -6,9 +6,11 @@
 #include <type_traits>
 #include <utility>
 
+export module photon.utils.semantic;
+
 
 namespace photon::utils {
-	template <typename T>
+	export template <typename T>
 	requires std::is_pointer_v<T>
 	class Owned final {
 		public:
@@ -76,7 +78,7 @@ namespace photon::utils {
 	};
 
 
-	template <typename T>
+	export template <typename T>
 	class OwnedSpan final {
 		public:
 			constexpr OwnedSpan() noexcept = default;

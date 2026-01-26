@@ -1,10 +1,12 @@
-#pragma once
+module;
 
 #include <cstdint>
 
+export module photon.color;
+
 
 namespace photon {
-	struct Color final {
+	export struct Color final {
 		uint8_t r;
 		uint8_t g;
 		uint8_t b;
@@ -14,7 +16,7 @@ namespace photon {
 		constexpr auto into() const noexcept -> T;
 	};
 
-	class ARGBColor final {
+	export class ARGBColor final {
 		friend Color;
 		public:
 			constexpr ~ARGBColor() noexcept = default;
@@ -32,7 +34,7 @@ namespace photon {
 			Color m_color;
 	};
 
-	template <>
+	export template <>
 	constexpr auto ARGBColor::into<uint32_t> () const noexcept -> uint32_t {
 		return static_cast<uint32_t> (m_color.a) << 24uz
 			| static_cast<uint32_t> (m_color.r) << 16uz
@@ -40,7 +42,7 @@ namespace photon {
 			| static_cast<uint32_t> (m_color.b);
 	}
 
-	class RGBAColor final {
+	export class RGBAColor final {
 		friend Color;
 		public:
 			constexpr ~RGBAColor() noexcept = default;
@@ -58,7 +60,7 @@ namespace photon {
 			Color m_color;
 	};
 
-	template <>
+	export template <>
 	constexpr auto RGBAColor::into<uint32_t> () const noexcept -> uint32_t {
 		return static_cast<uint32_t> (m_color.r) << 24uz
 			| static_cast<uint32_t> (m_color.g) << 16uz
@@ -66,11 +68,11 @@ namespace photon {
 			| static_cast<uint32_t> (m_color.a);
 	}
 
-	template <>
+	export template <>
 	constexpr auto Color::into<ARGBColor> () const noexcept -> ARGBColor {
 		return ARGBColor{*this};
 	}
-	template <>
+	export template <>
 	constexpr auto Color::into<RGBAColor> () const noexcept -> RGBAColor {
 		return RGBAColor{*this};
 	}
